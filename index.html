@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<!-- 文档类型声明，告诉浏览器这是HTML5文档 -->
+<html lang="zh-CN">
+<head>
+    <!-- 字符编码设置为UTF-8，支持中文显示 -->
+    <meta charset="UTF-8">
+    <!-- 视口设置，用于响应式设计，确保在不同设备上正确显示 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 页面标题 -->
+    <title>现代待办事项应用</title>
+    <!-- 引入外部CSS样式文件 -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 主容器，限制最大宽度并居中显示 -->
+    <div class="todo-container">
+        <!-- 头部区域，显示应用标题 -->
+        <header class="todo-header">
+            <!-- 标题，添加了可爱的笔记本图标 -->
+            <h1>📋 待办事项</h1>
+        </header>
+        
+        <!-- 任务输入区域，用于添加新任务 -->
+        <section class="todo-input-section">
+            <!-- 文本输入框，用于输入任务内容 -->
+            <input type="text" id="task-input" placeholder="输入新任务..." class="task-input">
+            <!-- 添加按钮，点击后提交新任务 -->
+            <button id="add-task-btn" class="add-task-btn">添加</button>
+        </section>
+        
+        <!-- 任务列表区域，显示所有待办事项 -->
+        <section class="todo-list-section">
+            <!-- 无序列表，用于动态生成任务项 -->
+            <ul id="todo-list" class="todo-list">
+                <!-- 任务项将通过JavaScript动态生成 -->
+            </ul>
+        </section>
+        
+        <!-- 任务统计区域，显示任务完成情况 -->
+        <footer class="todo-footer">
+            <!-- 统计信息容器 -->
+            <div id="task-stats" class="task-stats">
+                <!-- 初始统计信息，将通过JavaScript动态更新 -->
+                已完成: 0 / 总任务: 0
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        /**
+         * 任务数据管理模块
+         * 负责处理任务的CRUD操作和本地存储
+         */
+        const taskManager = {
+            /**
+             * 获取所有任务
+             * @returns {Array} 任务数组
+             */
+            getTasks: function() {
+                // 从localStorage获取任务数据
+                const tasks = localStorage.getItem('todoTasks');
+                // 如果有数据，解析为JavaScript对象；否则返回空数组
+                return tasks ? JSON.parse(tasks) : [];
+            },
+            
+            /**
+             * 保存任务到本地存储
+             * @param {Array} tasks 任务数组
+             */
+            saveTasks: function(tasks) {
+                // 将任务数组转换为JSON字符串并存储到localStorage
+                localStorage.setItem('todoTasks', JSON.stringify(tasks));
+            },
+            
+            /**
+             * 添加新任务
+             * @param {string} text 任务内容
+             * @returns {Object} 新创建的任务对象
+             */
+            addTask: function(text) {
+                // 获取现有任务
+                const tasks = this.getTasks();
+                // 创建新任务对象
+                const newTask = {
+                    id: Date.now(), // 使用时间戳作为唯一ID
+                    text: text,     // 任务内容
+                    completed: false // 初始状态为未完成
+                };
+                // 将新任务添加到数组
+                tasks.push(newTask);
+                // 保存到本地存储
+                this.saveTasks(tasks);
+                // 返回新创建的任务
+                return newTask;
+            },
+            
+            /**
+             * 切换任务的完成状态
+             * @param {number} id 任务ID
+             * @returns {Object|null} 切换状态后的任务对象或null
+             */
+            toggleTask: function(id) {
+                // 获取现有任务
+                const tasks = this.getTasks();
+                // 查找任务在数组中的索引
+                const taskIndex = tasks.findIndex(task => task.id === id);
+                // 如果找到任务
+                if (taskIndex !== -1) {
+                    // 切换任务的completed状态
+                    tasks[taskIndex].completed = !tasks[taskIndex].completed;
+                    // 保存到本地存储
+                    this.saveTasks(tasks);
+                    // 返回更新后的任务
+                    return tasks[taskIndex];
+                }
+                // 未找到任务，返回null
+                return null;
+            },
+            
+            /**
+             * 删除任务
+             * @param {number} id 任务ID
+             * @returns {Array} 删除任务后的数组
+             */
+            deleteTask: function(id) {
+                // 获取现有任务
+                const tasks = this.getTasks();
+                // 过滤掉ID匹配的任务
+                const updatedTasks = tasks.filter(task => task.id !== id);
+                // 保存到本地存储
+                this.saveTasks(updatedTasks);
+                // 返回更新后的任务数组
+                return updatedTasks;
+            },
+            
+            /**
+             * 获取任务统计信息
+             * @returns {Object} 包含已完成任务数和总任务数的对象
+             */
+            getStats: function() {
+                // 获取现有任务
+                const tasks = this.getTasks();
+                // 计算已完成任务数量
+                const completed = tasks.filter(task => task.completed).length;
+                // 返回统计信息
+                return {
+                    completed: completed, // 已完成任务数
+                    total: tasks.length    // 总任务数
+                };
+            }
+        };
+
+        /**
+         * DOM操作管理模块
+         * 负责页面渲染和事件处理
+         */
+        const domManager = {
+            /**
+             * 渲染任务列表
+             */
+            renderTasks: function() {
+                // 获取任务列表元素
+                const todoList = document.getElementById('todo-list');
+                // 获取所有任务
+                const tasks = taskManager.getTasks();
+                
+                // 清空列表
+                todoList.innerHTML = '';
+                
+                // 遍历任务数组，渲染每个任务
+                tasks.forEach(task => {
+                    // 创建任务项元素
+                    const taskItem = this.createTaskItem(task);
+                    // 添加到任务列表
+                    todoList.appendChild(taskItem);
+                });
+                
+                // 更新统计信息
+                this.updateStats();
+            },
+            
+            /**
+             * 创建任务项元素
+             * @param {Object} task 任务对象
+             * @returns {HTMLLIElement} 任务项DOM元素
+             */
+            createTaskItem: function(task) {
+                // 创建li元素
+                const li = document.createElement('li');
+                // 添加类名
+                li.className = 'todo-item';
+                // 存储任务ID到data属性
+                li.dataset.id = task.id;
+                
+                // 如果任务已完成，添加completed类
+                if (task.completed) {
+                    li.classList.add('completed');
+                }
+                
+                // 设置任务项的HTML内容
+                li.innerHTML = `
+                    <div class="task-content">
+                        <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+                        <span class="task-text">${task.text}</span>
+                    </div>
+                    <button class="delete-btn">删除</button>
+                `;
+                
+                // 为任务项添加事件监听器
+                this.addTaskListeners(li);
+                
+                // 返回创建的任务项元素
+                return li;
+            },
+            
+            /**
+             * 为任务项添加事件监听器
+             * @param {HTMLLIElement} taskItem 任务项元素
+             */
+            addTaskListeners: function(taskItem) {
+                // 获取任务项中的复选框和删除按钮
+                const checkbox = taskItem.querySelector('.task-checkbox');
+                const deleteBtn = taskItem.querySelector('.delete-btn');
+                
+                // 为复选框添加change事件监听器（切换任务状态）
+                checkbox.addEventListener('change', () => {
+                    // 获取任务ID
+                    const taskId = parseInt(taskItem.dataset.id);
+                    // 切换任务状态
+                    taskManager.toggleTask(taskId);
+                    // 重新渲染任务列表
+                    this.renderTasks();
+                });
+                
+                // 为删除按钮添加click事件监听器（删除任务）
+                deleteBtn.addEventListener('click', () => {
+                    // 获取任务ID
+                    const taskId = parseInt(taskItem.dataset.id);
+                    // 删除任务
+                    taskManager.deleteTask(taskId);
+                    // 添加删除动画
+                    taskItem.classList.add('fade-out');
+                    // 动画结束后重新渲染任务列表
+                    setTimeout(() => {
+                        this.renderTasks();
+                    }, 300); // 300毫秒，与CSS动画持续时间一致
+                });
+            },
+            
+            /**
+             * 更新任务统计信息
+             */
+            updateStats: function() {
+                // 获取任务统计信息
+                const stats = taskManager.getStats();
+                // 获取统计信息元素
+                const statsElement = document.getElementById('task-stats');
+                // 更新统计信息的HTML内容
+                statsElement.innerHTML = `
+                    <div class="task-stats-item task-stats-completed">
+                        ✅ 已完成: ${stats.completed}
+                    </div>
+                    <div class="task-stats-item task-stats-total">
+                        📋 总任务: ${stats.total}
+                    </div>
+                `;
+            },
+            
+            /**
+             * 初始化事件监听器
+             */
+            initEventListeners: function() {
+                // 获取添加任务按钮和输入框
+                const addTaskBtn = document.getElementById('add-task-btn');
+                const taskInput = document.getElementById('task-input');
+                
+                // 为添加任务按钮添加click事件监听器
+                addTaskBtn.addEventListener('click', () => {
+                    // 获取输入框的值并去除首尾空格
+                    const taskText = taskInput.value.trim();
+                    // 如果输入内容不为空
+                    if (taskText) {
+                        // 添加新任务
+                        taskManager.addTask(taskText);
+                        // 重新渲染任务列表
+                        this.renderTasks();
+                        // 清空输入框
+                        taskInput.value = '';
+                    }
+                });
+                
+                // 为输入框添加keypress事件监听器（按下回车键添加任务）
+                taskInput.addEventListener('keypress', (e) => {
+                    // 如果按下的是回车键
+                    if (e.key === 'Enter') {
+                        // 获取输入框的值并去除首尾空格
+                        const taskText = taskInput.value.trim();
+                        // 如果输入内容不为空
+                        if (taskText) {
+                            // 添加新任务
+                            taskManager.addTask(taskText);
+                            // 重新渲染任务列表
+                            this.renderTasks();
+                            // 清空输入框
+                            taskInput.value = '';
+                        }
+                    }
+                });
+            }
+        };
+
+        /**
+         * 初始化应用
+         */
+        function initApp() {
+            // 初始化事件监听器
+            domManager.initEventListeners();
+            // 渲染初始任务列表
+            domManager.renderTasks();
+        }
+
+        // 页面加载完成后初始化应用
+        // DOMContentLoaded事件在DOM树构建完成后触发
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
